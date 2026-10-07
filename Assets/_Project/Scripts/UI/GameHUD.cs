@@ -23,7 +23,20 @@ namespace _Project.Scripts.UI
             
             if (gameManager != null)
             {
-                GUILayout.Label($"Match: { gameManager.matchStateNv.Value} | Red {gameManager.redScore.Value} : {gameManager.blueScore.Value} Blue");
+                GUILayout.Label($"Match: {gameManager.matchStateNv.Value} | Red {gameManager.redScore.Value} : {gameManager.blueScore.Value} Blue");
+                if (gameManager.matchStateNv.Value == MatchState.Starting && gameManager.startingCountdown.Value > 0)
+                {
+                    GUILayout.Label($"MATCH STARTING  {gameManager.startingCountdown.Value}");
+                }
+                if (gameManager.matchStateNv.Value == MatchState.Finished)
+                {
+                    string teamName = gameManager.winningTeam.Value == Team.Red ? "RED TEAM" : gameManager.winningTeam.Value == Team.Blue ? "BLUE TEAM" : "NO TEAM";
+                    GUILayout.Label($"MATCH FINISHED  {teamName} WINS");
+                }
+                if (gameManager.matchStateNv.Value == MatchState.WaitingForPlayers)
+                {
+                    GUILayout.Label("Waiting for players (2 required)");
+                }
             }
             GUILayout.Label($"Clients: {nw.ConnectedClientsList.Count}");
 

@@ -199,10 +199,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CoreRush.Game.GameManager
   ShowTopMostFoldoutHeaderGroup: 1
   maxPlayers: 8
-  redBase: {fileID: 1514186557}
-  blueBase: {fileID: 1285201090}
+  coresToWin: 2
+  startingDurationSeconds: 3
   baseHalfExtents: {x: 3, y: 7}
   corePrefab: {fileID: 8320840340263541247, guid: 6e487ec9df7403a49963bcdde36d4345, type: 3}
+  orbPrefab: {fileID: 4409858476063462247, guid: 0e0d9b32e0c6e6f4fade6892d28fe281, type: 3}
+  redBase: {fileID: 1514186557}
+  blueBase: {fileID: 1285201090}
+  orbSpawn: {fileID: 988631475}
   redSpawns:
   - {fileID: 1622747128}
   - {fileID: 804073111}
@@ -228,6 +232,16 @@ MonoBehaviour:
       MaxSecondsBetweenUpdates: 0
     m_InternalValue: 0
   blueScore:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 0
+  startingCountdown:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: -1
+  winningTeam:
     UpdateTraits:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0
@@ -318,6 +332,7 @@ GameObject:
   - component: {fileID: 332695111}
   - component: {fileID: 332695110}
   - component: {fileID: 332695109}
+  - component: {fileID: 332695112}
   m_Layer: 0
   m_Name: Floor
   m_TagString: Untagged
@@ -397,6 +412,28 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!64 &332695112
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 332695108}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1 &354054021
 GameObject:
   m_ObjectHideFlags: 0
@@ -1355,7 +1392,7 @@ MonoBehaviour:
       - {fileID: 11400000, guid: e75e5bbde0ced494fb0c6390207f9c87, type: 2}
     TickRate: 30
     ClientConnectionBufferTimeout: 10
-    ConnectionApproval: 0
+    ConnectionApproval: 1
     ConnectionData: 
     EnableTimeResync: 0
     TimeResyncInterval: 30

@@ -112,6 +112,9 @@ namespace _Project.Scripts.Player
         private float GetServerSpeed()
         {
             if (_networkPlayer == null) return moveSpeed;
+            // Gameplay frozen unless the match is Playing (plan §11).
+            var gm = _Project.Scripts.Game.GameManager.Instance;
+            if (gm == null || gm.matchStateNv.Value != MatchState.Playing) return 0f;
             if (_networkPlayer.state.Value != PlayerState.Alive) return 0f;
             return _networkPlayer.hasOrb.Value ? moveSpeed * carrierSpeedMultiplier : moveSpeed;
         }

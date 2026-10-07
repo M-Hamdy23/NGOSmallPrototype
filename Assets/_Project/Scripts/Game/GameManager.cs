@@ -12,12 +12,14 @@ namespace _Project.Scripts.Game
         public static GameManager Instance { get; private set; }
 
         [SerializeField] private int maxPlayers = 8;
-        [SerializeField] private Transform redBase;
-        [SerializeField] private Transform blueBase;
+        [SerializeField] private int coresToWin = 2;
+        [SerializeField] private float startingDurationSeconds = 3f;
         [SerializeField] private Vector2 baseHalfExtents = new Vector2(3f, 7f);
 
         [SerializeField] private GameObject corePrefab;
         [SerializeField] private GameObject orbPrefab;
+        [SerializeField] private Transform redBase;
+        [SerializeField] private Transform blueBase;
         [SerializeField] private Transform orbSpawn;
         [SerializeField] private Transform[] redSpawns;
         [SerializeField] private Transform[] blueSpawns;
@@ -27,11 +29,14 @@ namespace _Project.Scripts.Game
         public NetworkVariable<MatchState> matchStateNv = new NetworkVariable<MatchState>(MatchState.WaitingForPlayers);
         public NetworkVariable<int> redScore = new NetworkVariable<int>();
         public NetworkVariable<int> blueScore = new NetworkVariable<int>();
+        public NetworkVariable<int> startingCountdown = new NetworkVariable<int>(-1); // -1 = inactive
+        public NetworkVariable<Team> winningTeam = new NetworkVariable<Team>(Team.None);
 
         private readonly Dictionary<ulong, NetworkPlayer> _players = new Dictionary<ulong, NetworkPlayer>();
         private int _redCount;
         private int _blueCount;
         private readonly Queue<(NetworkPlayer player, Vector3 position)> _pendingSpawns = new Queue<(NetworkPlayer, Vector3)>();
+        private double _startingEndServerTime;
 
         private void Awake()
         {
@@ -51,8 +56,8 @@ namespace _Project.Scripts.Game
 
             ServerSpawnAllCores();
             ServerSpawnOrb();
-            matchStateNv.Value = MatchState.Playing;
-            Debug.Log("[GameManager] Server started, cores spawned, match Playing");
+            matchStateNv.Value = MatchState.WaitingForPlayers;
+            Debug.Log("[GameManager] Server started, cores spawned, WaitingForPlayers");
         }
 
         private void ApproveConnection(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
@@ -68,6 +73,7 @@ namespace _Project.Scripts.Game
             // performed on the server when the player prefab spawns (ServerRegisterPlayer),
             // so that host, remote and dedicated-server clients all go through one code path.
             response.Approved = true;
+            response.CreatePlayerObject = true;
         }
 
         private Vector3 GetTeamSpawnPosition(Team team, int slot)
@@ -105,6 +111,46 @@ namespace _Project.Scripts.Game
                 player.GetComponent<Unity.Netcode.Components.NetworkTransform>().Teleport(position, Quaternion.identity, Vector3.one);
                 Debug.Log($"[GameManager] Spawned {player.name} ({player.playerTeam.Value}) at {position}");
             }
+
+            ServerTickMatchState();
+        }
+
+        // ============================================================
+        // MATCH STATE MACHINE (plan §11): transitions and timers live on
+        // the server; clients only read the replicated state.
+        private void ServerTickMatchState()
+        {
+            double now = NetworkManager.Singleton.ServerTime.Time;
+            switch (matchStateNv.Value)
+            {
+                case MatchState.WaitingForPlayers:
+                    if (NetworkManager.ConnectedClientsList.Count >= 2)
+                    {
+                        _startingEndServerTime = now + startingDurationSeconds;
+                        matchStateNv.Value = MatchState.Starting;
+                        startingCountdown.Value = Mathf.CeilToInt((float)startingDurationSeconds);
+                        Debug.Log("[GameManager] 2+ players connected, match Starting");
+                    }
+                    break;
+
+                case MatchState.Starting:
+                    int remaining = Mathf.CeilToInt((float)(_startingEndServerTime - now));
+                    if (remaining >= 0 && remaining != startingCountdown.Value)
+                    {
+                        startingCountdown.Value = remaining;
+                    }
+                    if (now >= _startingEndServerTime)
+                    {
+                        matchStateNv.Value = MatchState.Playing;
+                        startingCountdown.Value = -1;
+                        Debug.Log("[GameManager] Match Playing");
+                    }
+                    break;
+
+                case MatchState.Playing:
+                case MatchState.Finished:
+                    break;
+            }
         }
 
         public void ServerUnregisterPlayer(ulong clientId)
@@ -138,19 +184,59 @@ namespace _Project.Scripts.Game
             if (team == Team.Red) redScore.Value++;
             else if (team == Team.Blue) blueScore.Value++;
             Debug.Log("[GameManager] Score: red=" + redScore.Value + " blue=" + blueScore.Value);
+
+            // Victory A (plan §12): first team to complete coresToWin cores wins.
+            if (matchStateNv.Value == MatchState.Playing)
+            {
+                if (redScore.Value >= coresToWin) ServerFinishMatch(Team.Red);
+                else if (blueScore.Value >= coresToWin) ServerFinishMatch(Team.Blue);
+            }
         }
 
+        // ============================================================
+        // DISCONNECT CLEANUP (plan §13): centralized on the server.
+        // Any Core/Orb possessed by the disconnected player is released
+        // and team counters rebalanced; the match keeps running.
+        // The player prefab uses DontDestroyWithOwner so the object is
+        // still readable here; we release possessions and despawn it ourselves.
         private void ServerOnClientDisconnect(ulong clientId)
         {
             NetworkPlayer player = ServerGetPlayer(clientId);
             if (player != null)
             {
+                if (player.carriedCoreId.Value != 0)
+                {
+                    ObjectiveCore carried = ObjectiveCore.FindCoreById(player.carriedCoreId.Value);
+                    if (carried != null)
+                    {
+                        carried.ServerReleaseCore(CoreState.Available);
+                        Debug.Log("[GameManager] Released core after disconnect of " + clientId);
+                    }
+                }
+
+                if (player.hasOrb.Value)
+                {
+                    foreach (_Project.Scripts.Orb.SharedOrb orb in _Project.Scripts.Orb.SharedOrb.All)
+                    {
+                        if (orb.carrierClientId.Value == clientId)
+                        {
+                            orb.ServerReturnToSpawn();
+                            Debug.Log("[GameManager] Returned orb after disconnect of " + clientId);
+                        }
+                    }
+                }
+
                 if (player.playerTeam.Value == Team.Red) _redCount = Mathf.Max(0, _redCount - 1);
                 else if (player.playerTeam.Value == Team.Blue) _blueCount = Mathf.Max(0, _blueCount - 1);
+
+                if (player.IsSpawned)
+                {
+                    player.NetworkObject.Despawn();
+                }
                 ServerUnregisterPlayer(clientId);
             }
 
-            Debug.Log("[GameManager] Client " + clientId + " disconnected (full cleanup in step 5)");
+            Debug.Log("[GameManager] Client " + clientId + " disconnected");
         }
 
         private void ServerSpawnAllCores()
@@ -193,10 +279,10 @@ namespace _Project.Scripts.Game
 
             if (player.carriedCoreId.Value != 0)
             {
-                ObjectiveCore carried = _Project.Scripts.Objective.ObjectiveCore.FindCoreById(player.carriedCoreId.Value);
+                ObjectiveCore carried = ObjectiveCore.FindCoreById(player.carriedCoreId.Value);
                 if (carried != null)
                 {
-                    carried.ServerReleaseCore(_Project.Scripts.Objective.CoreState.Available);
+                    carried.ServerReleaseCore(CoreState.Available);
                 }
             }
 
@@ -209,6 +295,34 @@ namespace _Project.Scripts.Game
             }
 
             Debug.Log($"[GameManager] Player {player.OwnerClientId} eliminated; core/orb released");
+
+            // Victory B (plan §12): all active players of a team eliminated.
+            ServerCheckEliminationVictory();
+        }
+
+        private void ServerCheckEliminationVictory()
+        {
+            if (matchStateNv.Value != MatchState.Playing) return;
+
+            int redAlive = 0;
+            int blueAlive = 0;
+            foreach (NetworkPlayer player in _players.Values)
+            {
+                if (player == null || player.state.Value != PlayerState.Alive) continue;
+                if (player.playerTeam.Value == Team.Red) redAlive++;
+                else if (player.playerTeam.Value == Team.Blue) blueAlive++;
+            }
+
+            if (redAlive > 0 && blueAlive == 0) ServerFinishMatch(Team.Red);
+            else if (blueAlive > 0 && redAlive == 0) ServerFinishMatch(Team.Blue);
+        }
+
+        public void ServerFinishMatch(Team winner)
+        {
+            if (!IsServer || matchStateNv.Value == MatchState.Finished) return;
+            matchStateNv.Value = MatchState.Finished;
+            winningTeam.Value = winner;
+            Debug.Log("[GameManager] Match Finished, winner=" + winner);
         }
     }
 }
