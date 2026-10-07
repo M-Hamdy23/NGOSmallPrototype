@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 641039179299100695}
   - component: {fileID: 9212497731636672949}
   - component: {fileID: 2873485737426871110}
+  - component: {fileID: 1869055058364283252}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -203,3 +204,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CoreRush.Player.NetworkPlayer
   ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &1869055058364283252
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4509659999885021644}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5043a953da1d3544bac0dccfe316d67, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CoreRush.Player.PlayerMovement
+  ShowTopMostFoldoutHeaderGroup: 1
+  moveSpeed: 5
+  arenaHalfExtents: {x: 29, y: 14.5}
+  inputSendRate: 20
