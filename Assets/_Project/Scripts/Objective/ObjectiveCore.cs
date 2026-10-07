@@ -186,7 +186,7 @@ namespace _Project.Scripts.Objective
             Debug.Log("[ObjectiveCore] " + name + " completed by " + team);
         }
 
-        private void ServerReleaseCore(CoreState nextState)
+        internal void ServerReleaseCore(CoreState nextState)
         {
             NetworkPlayer player = GameManager.Instance != null
                 ? GameManager.Instance.ServerGetPlayer(carrierClientId.Value)

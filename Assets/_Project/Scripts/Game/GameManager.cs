@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using _Project.Scripts.Objective;
 using _Project.Scripts.Player;
 using Unity.Netcode;
 using UnityEngine;
@@ -16,6 +17,8 @@ namespace _Project.Scripts.Game
         [SerializeField] private Vector2 baseHalfExtents = new Vector2(3f, 7f);
 
         [SerializeField] private GameObject corePrefab;
+        [SerializeField] private GameObject orbPrefab;
+        [SerializeField] private Transform orbSpawn;
         [SerializeField] private Transform[] redSpawns;
         [SerializeField] private Transform[] blueSpawns;
         [SerializeField] private Transform[] coreSpawns;
@@ -47,6 +50,7 @@ namespace _Project.Scripts.Game
             NetworkManager.Singleton.OnClientDisconnectCallback += ServerOnClientDisconnect;
 
             ServerSpawnAllCores();
+            ServerSpawnOrb();
             matchStateNv.Value = MatchState.Playing;
             Debug.Log("[GameManager] Server started, cores spawned, match Playing");
         }
@@ -164,6 +168,47 @@ namespace _Project.Scripts.Game
                 spawnManager.InstantiateAndSpawn(coreNetworkObject, NetworkManager.ServerClientId,
                     true, false, false, marker.position, Quaternion.identity);
             }
+        }
+
+        private void ServerSpawnOrb()
+        {
+            if (orbPrefab == null || orbSpawn == null)
+            {
+                Debug.LogError("[GameManager] Orb prefab/spawn not assigned");
+                return;
+            }
+            NetworkObject orbNetworkObject = orbPrefab.GetComponent<NetworkObject>();
+            NetworkManager.SpawnManager.InstantiateAndSpawn(orbNetworkObject, NetworkManager.ServerClientId,
+                true, false, false, orbSpawn.position, Quaternion.identity);
+        }
+
+        // ============================================================
+        // ELIMINATION (plan §10): server-only. Releases everything the
+        // player possessed so no gameplay object stays orphaned.
+        public void ServerEliminatePlayer(NetworkPlayer player)
+        {
+            if (!IsServer || player == null || player.state.Value != PlayerState.Alive) return;
+
+            player.state.Value = PlayerState.Eliminated;
+
+            if (player.carriedCoreId.Value != 0)
+            {
+                ObjectiveCore carried = _Project.Scripts.Objective.ObjectiveCore.FindCoreById(player.carriedCoreId.Value);
+                if (carried != null)
+                {
+                    carried.ServerReleaseCore(_Project.Scripts.Objective.CoreState.Available);
+                }
+            }
+
+            foreach (_Project.Scripts.Orb.SharedOrb orb in _Project.Scripts.Orb.SharedOrb.All)
+            {
+                if (orb.carrierClientId.Value == player.OwnerClientId)
+                {
+                    orb.ServerReturnToSpawn();
+                }
+            }
+
+            Debug.Log($"[GameManager] Player {player.OwnerClientId} eliminated; core/orb released");
         }
     }
 }

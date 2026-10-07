@@ -1,3 +1,4 @@
+using _Project.Scripts.Game;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -7,17 +8,24 @@ namespace _Project.Scripts.Player
     public class PlayerMovement : NetworkBehaviour
     {
         [SerializeField] private float moveSpeed = 5f;
+        [SerializeField] private float carrierSpeedMultiplier = 0.5f; // plan §7: orb carrier moves at 50%
         [SerializeField] private Vector2 arenaHalfExtents = new Vector2(29f, 14.5f);
         [SerializeField] private float inputSendRate = 20f;
 
         private Vector2 _serverInput;
         private Vector2 _lastSentInput;
         private Vector2 _externalInput;
+        private Vector2 _lastMoveDirection = Vector2.right;
         private float _nextSendTime;
+
+        private NetworkPlayer _networkPlayer;
+
+        public Vector2 LastMoveDirection => _lastMoveDirection;
 
         public override void OnNetworkSpawn()
         {
             name = "Player_" + OwnerClientId;
+            _networkPlayer = GetComponent<NetworkPlayer>();
         }
 
         private void Update()
@@ -66,6 +74,10 @@ namespace _Project.Scripts.Player
             Vector2 input = ReadLocalInput();
             if (input == _lastSentInput) return;
             _lastSentInput = input;
+            if (input != Vector2.zero)
+            {
+                _lastMoveDirection = input;
+            }
             _nextSendTime = Time.time + 1f / inputSendRate;
             MoveInputServerRpc(input);
         }
@@ -74,16 +86,34 @@ namespace _Project.Scripts.Player
         private void MoveInputServerRpc(Vector2 input)
         {
             if (!IsServer) return;
+            // Server validation: eliminated players cannot move (plan §10).
+            if (_networkPlayer != null && _networkPlayer.state.Value != PlayerState.Alive)
+            {
+                _serverInput = Vector2.zero;
+                return;
+            }
             _serverInput = Vector2.ClampMagnitude(input, 1f);
         }
 
         private void ApplyServerMovement()
         {
-            Vector3 delta = new Vector3(_serverInput.x, 0f, _serverInput.y) * (moveSpeed * Time.deltaTime);
+            float speed = GetServerSpeed();
+            if (_serverInput != Vector2.zero)
+            {
+                _lastMoveDirection = _serverInput;
+            }
+            Vector3 delta = new Vector3(_serverInput.x, 0f, _serverInput.y) * (speed * Time.deltaTime);
             Vector3 pos = transform.position + delta;
             pos.x = Mathf.Clamp(pos.x, -arenaHalfExtents.x, arenaHalfExtents.x);
             pos.z = Mathf.Clamp(pos.z, -arenaHalfExtents.y, arenaHalfExtents.y);
             transform.position = pos;
+        }
+
+        private float GetServerSpeed()
+        {
+            if (_networkPlayer == null) return moveSpeed;
+            if (_networkPlayer.state.Value != PlayerState.Alive) return 0f;
+            return _networkPlayer.hasOrb.Value ? moveSpeed * carrierSpeedMultiplier : moveSpeed;
         }
     }
 }

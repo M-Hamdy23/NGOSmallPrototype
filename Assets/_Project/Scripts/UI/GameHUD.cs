@@ -34,11 +34,11 @@ namespace _Project.Scripts.UI
                 var player = localPlayer.GetComponent<NetworkPlayer>();
                 if (player != null)
                 {
-                    GUILayout.Label($"You: Team={player.playerTeam.Value} State={player.state.Value} CarryingCore={player.carriedCoreId.Value != 0}");
+                    GUILayout.Label($"You: Team={player.playerTeam.Value} State={player.state.Value} CarryingCore={player.carriedCoreId.Value != 0} HasOrb={player.hasOrb.Value}");
                 }
             }
 
-            GUILayout.Label($"Controls: WASD move | E pickup/interact");
+            GUILayout.Label($"Controls: WASD move | E pickup/interact | Space throw");
             GUILayout.EndArea();
         }
     }
