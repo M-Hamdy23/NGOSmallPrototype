@@ -2,7 +2,7 @@ using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-namespace CoreRush.Player
+namespace _Project.Scripts.Player
 {
     public class PlayerMovement : NetworkBehaviour
     {
@@ -70,7 +70,7 @@ namespace CoreRush.Player
             MoveInputServerRpc(input);
         }
 
-        [ServerRpc(RequireOwnership = true)]
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
         private void MoveInputServerRpc(Vector2 input)
         {
             if (!IsServer) return;

@@ -3,7 +3,7 @@ using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using UnityEngine;
 
-namespace CoreRush.Network
+namespace _Project.Scripts.Network
 {
     public class ConnectionManager : MonoBehaviour
     {
@@ -23,7 +23,7 @@ namespace CoreRush.Network
         private void OnGUI()
         {
             GUILayout.BeginArea(new Rect(10, 10, 320, 300));
-            GUILayout.Label("Core Rush - Connection");
+            GUILayout.Label("Connection");
             GUILayout.Label("Status: " + _status);
 
             if (NetworkManager.Singleton != null &&
