@@ -32,7 +32,7 @@ namespace _Project.Scripts.Game
         public NetworkVariable<int> blueScore = new NetworkVariable<int>();
         public NetworkVariable<int> startingCountdown = new NetworkVariable<int>(-1); // -1 = inactive
         public NetworkVariable<Team> winningTeam = new NetworkVariable<Team>(Team.None);
-
+        public int MinimumPlayersToStart => minPlayersToStart;
         private readonly Dictionary<ulong, NetworkPlayer> _players = new Dictionary<ulong, NetworkPlayer>();
         private int _redCount;
         private int _blueCount;
@@ -132,6 +132,7 @@ namespace _Project.Scripts.Game
                         startingCountdown.Value = Mathf.CeilToInt((float)startingDurationSeconds);
                         Debug.Log($"[GameManager] {minPlayersToStart}+ players connected, match Starting");
                     }
+
                     break;
 
                 case MatchState.Starting:
@@ -140,12 +141,14 @@ namespace _Project.Scripts.Game
                     {
                         startingCountdown.Value = remaining;
                     }
+
                     if (now >= _startingEndServerTime)
                     {
                         matchStateNv.Value = MatchState.Playing;
                         startingCountdown.Value = -1;
                         Debug.Log("[GameManager] Match Playing");
                     }
+
                     break;
 
                 case MatchState.Playing:
@@ -234,6 +237,7 @@ namespace _Project.Scripts.Game
                 {
                     player.NetworkObject.Despawn();
                 }
+
                 ServerUnregisterPlayer(clientId);
             }
 
@@ -264,6 +268,7 @@ namespace _Project.Scripts.Game
                 Debug.LogError("[GameManager] Orb prefab/spawn not assigned");
                 return;
             }
+
             NetworkObject orbNetworkObject = orbPrefab.GetComponent<NetworkObject>();
             NetworkManager.SpawnManager.InstantiateAndSpawn(orbNetworkObject, NetworkManager.ServerClientId,
                 true, false, false, orbSpawn.position, Quaternion.identity);

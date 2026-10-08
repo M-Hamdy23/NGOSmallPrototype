@@ -13,23 +13,24 @@ namespace _Project.Scripts.UI
     /// </summary>
     public class GameHUD : MonoBehaviour
     {
-        [Header("Binding")]
-        [SerializeField] private GameManager gameManager;
+        [Header("Binding")] [SerializeField] private GameManager gameManager;
 
-        [Header("Root")]
-        [SerializeField] private GameObject hudRoot;
+        [Header("Root")] [SerializeField] private GameObject hudRoot;
 
-        [Header("Scoreboard")]
-        [SerializeField] private Text redScoreText;
+        [Header("Scoreboard")] [SerializeField]
+        private Text redScoreText;
+
         [SerializeField] private Text blueScoreText;
 
-        [Header("Match State Banner")]
-        [SerializeField] private GameObject stateBanner;
+        [Header("Match State Banner")] [SerializeField]
+        private GameObject stateBanner;
+
         [SerializeField] private Image stateBannerImage;
         [SerializeField] private Text stateBannerText;
 
-        [Header("Session / Player")]
-        [SerializeField] private Text clientsText;
+        [Header("Session / Player")] [SerializeField]
+        private Text clientsText;
+
         [SerializeField] private Text playerText;
 
         private static readonly Color WaitingColor = new Color(0.55f, 0.45f, 0.15f, 0.94f);
@@ -81,7 +82,7 @@ namespace _Project.Scripts.UI
             switch (state)
             {
                 case MatchState.WaitingForPlayers:
-                    SetBanner(true, "WAITING FOR PLAYERS  (2 REQUIRED)", WaitingColor);
+                    SetBanner(true, $"WAITING FOR PLAYERS  ({gameManager.MinimumPlayersToStart} REQUIRED)", WaitingColor);
                     break;
 
                 case MatchState.Starting:
