@@ -139,6 +139,15 @@ namespace _Project.Scripts.Network
 
         private static ushort ReadServerPort()
         {
+            string mapping = Environment.GetEnvironmentVariable("ARBITRIUM_PORTS_MAPPING");
+            if (!string.IsNullOrEmpty(mapping))
+            {
+                ushort? mapped = ReadInternalPortFromMapping(mapping);
+                if (mapped.HasValue)
+                {
+                    return mapped.Value;
+                }
+            }
             string[] args = Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++)
             {
@@ -153,6 +162,35 @@ namespace _Project.Scripts.Network
                 return envResult;
             }
             return 7777;
+        }
+
+        // Edgegap injects e.g. {"ports":{"game-7777":{"name":"...","internal":7777,
+        // "external":32512,"protocol":"UDP"}}} - the server must bind the internal port.
+        private static ushort? ReadInternalPortFromMapping(string mapping)
+        {
+            if (string.IsNullOrEmpty(mapping))
+            {
+                return null;
+            }
+            const string key = "\"internal\":";
+            int keyIndex = mapping.IndexOf(key, StringComparison.OrdinalIgnoreCase);
+            if (keyIndex < 0)
+            {
+                return null;
+            }
+            int valueStart = keyIndex + key.Length;
+            int valueEnd = valueStart;
+            while (valueEnd < mapping.Length && (char.IsDigit(mapping[valueEnd]) ||
+                (valueEnd == valueStart && mapping[valueEnd] == '-')))
+            {
+                valueEnd++;
+            }
+            if (int.TryParse(mapping.Substring(valueStart, valueEnd - valueStart), out int port) &&
+                port > 0 && port <= ushort.MaxValue)
+            {
+                return (ushort)port;
+            }
+            return null;
         }
 
         private static ushort ParsePort(string text)
