@@ -62,7 +62,7 @@ Owner client (FixedUpdate, ~50 Hz)
         -> server validates at ingest, integrates in order (<= 8 cmds/tick, arena-clamped)
           -> MoveAck NetworkVariable (last processed sequence + authoritative position)
             -> owner: snap to ack, replay un-acked commands (reconciliation)
-            -> others: SmoothedAnticipatedNetworkTransform glide (SmoothDamp)
+            -> others: AnticipatedNetworkTransform interpolation (built-in NGO)
 ```
 
 ### Client prediction & reconciliation
@@ -80,7 +80,7 @@ Notes:
 
 - The client never sends positions or speeds - only inputs.
 - There is **no lag compensation**: orb hits are validated against the server's current positions, so a high-latency throw can resolve slightly behind what the thrower saw.
-- Remote players converge on the replicated snapshot with a critically damped `SmoothDamp` (see `SmoothedAnticipatedNetworkTransform`) rather than a snapshot-interpolation buffer, so heavy jitter can leave them trailing by roughly the convergence time (~80 ms).
+- Remote players converge on the replicated snapshot using the built-in NGO `AnticipatedNetworkTransform` interpolation, so heavy jitter can leave them trailing by roughly the interpolation time.
 
 ### Core interaction
 
@@ -109,7 +109,7 @@ Scoring, the 3-second pre-round and the finished state are all `NetworkVariable`
 | `ClientConnection` | `StartHost` / `StartClient` (client-side connect logic) |
 | `NetworkPlayer` | Per-player replicated state (`playerTeam`, `state`, `hasOrb`, `carriedCoreId`), interact/throw request Rpcs, Input System actions |
 | `PlayerMovement` | Server-authoritative movement with sequenced-input client prediction + reconciliation; the client only ever sends a normalized 2D input |
-| `SmoothedAnticipatedNetworkTransform` | `AnticipatedNetworkTransform` subclass; renders remote players with a critically damped (`SmoothDamp`) glide toward the latest snapshot, snapping on teleport/respawn |
+| `AnticipatedNetworkTransform` | Built-in NGO component on the player prefab; reconciles the owner's predicted position and interpolates remote players toward the latest snapshot |
 | `GameManager` | Match state machine, team assignment + spawn positioning, victory checks, elimination handling, connection approval |
 | `ObjectiveCore` | Core state machine + 1-second deposit timer (server-only logic) |
 | `SharedOrb` / `OrbProjectile` | Orb possession / throwing / flight timer, server-validated hit targeting |
@@ -130,7 +130,7 @@ Scoring, the 3-second pre-round and the finished state are all `NetworkVariable`
 Assets/
   _Project/
     Scenes/Arena.unity          # single scene: everything (layout, spawn markers, NetworkManager, GameManager, HUD)
-    Prefabs/Player.prefab       # NetworkObject + NetworkPlayer + PlayerMovement + SmoothedAnticipatedNetworkTransform (NetworkTransform)
+    Prefabs/Player.prefab       # NetworkObject + NetworkPlayer + PlayerMovement + AnticipatedNetworkTransform (NetworkTransform)
     Prefabs/Core.prefab         # NetworkObject + NetworkTransform + ObjectiveCore
     Prefabs/Orb.prefab          # NetworkObject + NetworkTransform + SharedOrb + OrbProjectile
     Scripts/...                   # the architecture table above
