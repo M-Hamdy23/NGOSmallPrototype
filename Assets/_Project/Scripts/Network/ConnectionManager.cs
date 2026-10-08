@@ -8,22 +8,46 @@ namespace _Project.Scripts.Network
     [RequireComponent(typeof(ClientConnection))]
     public class ConnectionManager : MonoBehaviour
     {
-        private string _host = "127.0.0.1";
-        private string _port = "7777";
-        private string _status = "Idle";
         [SerializeField] private ServerConnection serverConnection;
         [SerializeField] private ClientConnection clientConnection;
 
+        public string Status { get; private set; } = "Idle";
+        public bool IsListening => NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening;
+        public bool IsHost => NetworkManager.Singleton != null && NetworkManager.Singleton.IsHost;
+        public bool IsServer => NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer;
+        public bool IsClient => NetworkManager.Singleton != null && NetworkManager.Singleton.IsClient;
+        public int ConnectedClients =>
+            NetworkManager.Singleton != null ? NetworkManager.Singleton.ConnectedClientsIds.Count : 0;
+
+        private void Awake()
+        {
+            if (serverConnection == null) serverConnection = GetComponent<ServerConnection>();
+            if (clientConnection == null) clientConnection = GetComponent<ClientConnection>();
+        }
+
         private void Start()
         {
-            if (serverConnection == null) serverConnection = gameObject.GetComponent<ServerConnection>();
-            if (clientConnection == null) clientConnection = gameObject.GetComponent<ClientConnection>();
-
             if (IsDedicatedServer())
             {
                 ConfigureServerLoop();
-                _status = serverConnection.StartServer();
+                Status = serverConnection.StartServer();
             }
+        }
+
+        public string StartHost(ushort port) => Status = clientConnection.StartHost(port);
+
+        public string StartServer(ushort port) => Status = serverConnection.StartServer(port);
+
+        public string StartClient(string host, ushort port) => Status = clientConnection.StartClient(host, port);
+
+        public void Shutdown()
+        {
+            if (NetworkManager.Singleton != null)
+            {
+                NetworkManager.Singleton.Shutdown();
+            }
+
+            Status = "Idle";
         }
 
         /// <summary>
@@ -46,55 +70,9 @@ namespace _Project.Scripts.Network
             if (clientConnection == null) clientConnection = gameObject.GetComponent<ClientConnection>();
         }
 
-        private void OnGUI()
-        {
-            GUILayout.BeginArea(new Rect(10, 10, 320, 300));
-            GUILayout.Label("Connection");
-            GUILayout.Label("Status: " + _status);
-
-            if (NetworkManager.Singleton != null &&
-                (NetworkManager.Singleton.IsServer || NetworkManager.Singleton.IsClient))
-            {
-                GUILayout.Label("Connected as " +
-                                (NetworkManager.Singleton.IsHost ? "Host" : NetworkManager.Singleton.IsServer ? "Server" : "Client") +
-                                "  Clients: " + NetworkManager.Singleton.ConnectedClientsIds.Count);
-                if (GUILayout.Button("Shutdown"))
-                {
-                    NetworkManager.Singleton.Shutdown();
-                    _status = "Idle";
-                }
-
-                GUILayout.EndArea();
-                return;
-            }
-
-            GUILayout.Label("Host:");
-            _host = GUILayout.TextField(_host);
-            GUILayout.Label("Port:");
-            _port = GUILayout.TextField(_port);
-
-            if (GUILayout.Button("Start Host"))
-            {
-                _status = clientConnection.StartHost(ParsePort(_port));
-            }
-
-            if (GUILayout.Button("Start Server"))
-            {
-                _status = serverConnection.StartServer(ParsePort(_port));
-            }
-
-            if (GUILayout.Button("Start Client"))
-            {
-                _status = clientConnection.StartClient(_host, ParsePort(_port));
-            }
-
-            GUILayout.EndArea();
-        }
-
-
         private static bool IsDedicatedServer()
         {
-#if UNITY_SERVER
+#if UNITY_SERVER && !UNITY_EDITOR
             return true;
 #else
             if (Application.isBatchMode) return true;
@@ -107,8 +85,7 @@ namespace _Project.Scripts.Network
 #endif
         }
 
-
-        private static ushort ParsePort(string text)
+        public static ushort ParsePort(string text)
         {
             return ushort.TryParse(text, out ushort port) ? port : ConnectionBase.DefaultPort;
         }

@@ -116,7 +116,7 @@ namespace _Project.Scripts.Game
         }
 
         // ============================================================
-        // MATCH STATE MACHINE (plan §11): transitions and timers live on
+        // MATCH STATE MACHINE : transitions and timers live on
         // the server; clients only read the replicated state.
         private void ServerTickMatchState()
         {
@@ -185,7 +185,7 @@ namespace _Project.Scripts.Game
             else if (team == Team.Blue) blueScore.Value++;
             Debug.Log("[GameManager] Score: red=" + redScore.Value + " blue=" + blueScore.Value);
 
-            // Victory A (plan §12): first team to complete coresToWin cores wins.
+            // Victory A : first team to complete coresToWin cores wins.
             if (matchStateNv.Value == MatchState.Playing)
             {
                 if (redScore.Value >= coresToWin) ServerFinishMatch(Team.Red);
@@ -194,7 +194,7 @@ namespace _Project.Scripts.Game
         }
 
         // ============================================================
-        // DISCONNECT CLEANUP (plan §13): centralized on the server.
+        // DISCONNECT CLEANUP: centralized on the server.
         // Any Core/Orb possessed by the disconnected player is released
         // and team counters rebalanced; the match keeps running.
         // The player prefab uses DontDestroyWithOwner so the object is
@@ -269,7 +269,7 @@ namespace _Project.Scripts.Game
         }
 
         // ============================================================
-        // ELIMINATION (plan §10): server-only. Releases everything the
+        // ELIMINATION: server-only. Releases everything the
         // player possessed so no gameplay object stays orphaned.
         public void ServerEliminatePlayer(NetworkPlayer player)
         {
@@ -296,7 +296,7 @@ namespace _Project.Scripts.Game
 
             Debug.Log($"[GameManager] Player {player.OwnerClientId} eliminated; core/orb released");
 
-            // Victory B (plan §12): all active players of a team eliminated.
+            // Victory B : all active players of a team eliminated.
             ServerCheckEliminationVictory();
         }
 

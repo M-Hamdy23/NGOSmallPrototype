@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace _Project.Scripts.Orb
 {
-    // Server physics only (plan §9): the client never decides the hit result.
+    // Server physics only: the client never decides the hit result.
     // This component resolves collisions while the orb is in the Thrown state
     // and asks the server for elimination.
     public class OrbProjectile : MonoBehaviour

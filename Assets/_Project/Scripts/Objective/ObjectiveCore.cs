@@ -92,7 +92,7 @@ namespace _Project.Scripts.Objective
             if (player.carriedCoreId.Value != 0UL) return false;
             if (Vector3.Distance(player.transform.position, transform.position) > pickupRadius) return false;
 
-            // RACE-CONDITION PROTECTION (plan §5):
+            // RACE-CONDITION PROTECTION:
             // two clients can send this request at the same time. NGO executes
             // server RPCs sequentially on the single server loop: the first
             // valid request transitions State Available -> Carried; the
@@ -144,8 +144,7 @@ namespace _Project.Scripts.Objective
                 ? GameManager.Instance.ServerGetPlayer(carrierClientId.Value)
                 : null;
 
-            // Cancellation: carrier gone/eliminated/lost the core -> Core goes back to Available (plan §6).
-            // (disconnect release is also centralised in GameManager step 5)
+            // Cancellation: carrier gone/eliminated/lost the core -> Core goes back to Available.
             if (player == null || player.state.Value != PlayerState.Alive ||
                 player.carriedCoreId.Value != NetworkObjectId)
             {
