@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Newtonsoft.Json;
+using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -21,7 +22,7 @@ namespace Edgegap.Bootstrap
 
         protected override void ValidatePortMapping()
         {
-            UnityTransport transport = FindFirstObjectByType<UnityTransport>();
+            UnityTransport transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
             _sceneTransportData = (
                 transport.ConnectionData.Port,
                 "UDP",

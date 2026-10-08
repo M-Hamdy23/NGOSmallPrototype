@@ -1,23 +1,34 @@
 using System;
 using Unity.Netcode;
-using Unity.Netcode.Transports.UTP;
 using UnityEngine;
 
 namespace _Project.Scripts.Network
 {
+    [RequireComponent(typeof(ServerConnection))]
+    [RequireComponent(typeof(ClientConnection))]
     public class ConnectionManager : MonoBehaviour
     {
         private string _host = "127.0.0.1";
         private string _port = "7777";
         private string _status = "Idle";
+        [SerializeField] private ServerConnection serverConnection;
+        [SerializeField] private ClientConnection clientConnection;
 
         private void Start()
         {
+            if (serverConnection == null) serverConnection = gameObject.GetComponent<ServerConnection>();
+            if (clientConnection == null) clientConnection = gameObject.GetComponent<ClientConnection>();
+
             if (IsDedicatedServer())
             {
-                ushort serverPort = ReadServerPort();
-                StartServer(serverPort);
+                _status = serverConnection.StartServer();
             }
+        }
+
+        private void OnValidate()
+        {
+            if (serverConnection == null) serverConnection = gameObject.GetComponent<ServerConnection>();
+            if (clientConnection == null) clientConnection = gameObject.GetComponent<ClientConnection>();
         }
 
         private void OnGUI()
@@ -30,13 +41,14 @@ namespace _Project.Scripts.Network
                 (NetworkManager.Singleton.IsServer || NetworkManager.Singleton.IsClient))
             {
                 GUILayout.Label("Connected as " +
-                    (NetworkManager.Singleton.IsHost ? "Host" : NetworkManager.Singleton.IsServer ? "Server" : "Client") +
-                    "  Clients: " + NetworkManager.Singleton.ConnectedClientsIds.Count);
+                                (NetworkManager.Singleton.IsHost ? "Host" : NetworkManager.Singleton.IsServer ? "Server" : "Client") +
+                                "  Clients: " + NetworkManager.Singleton.ConnectedClientsIds.Count);
                 if (GUILayout.Button("Shutdown"))
                 {
                     NetworkManager.Singleton.Shutdown();
                     _status = "Idle";
                 }
+
                 GUILayout.EndArea();
                 return;
             }
@@ -48,79 +60,22 @@ namespace _Project.Scripts.Network
 
             if (GUILayout.Button("Start Host"))
             {
-                StartHost(ParsePort(_port));
+                _status = clientConnection.StartHost(ParsePort(_port));
             }
+
             if (GUILayout.Button("Start Server"))
             {
-                StartServer(ParsePort(_port));
+                _status = serverConnection.StartServer(ParsePort(_port));
             }
+
             if (GUILayout.Button("Start Client"))
             {
-                StartClient(_host, ParsePort(_port));
+                _status = clientConnection.StartClient(_host, ParsePort(_port));
             }
+
             GUILayout.EndArea();
         }
 
-        private void StartHost(ushort port)
-        {
-            if (!ConfigureTransport("0.0.0.0", port)) return;
-            if (NetworkManager.Singleton.StartHost())
-            {
-                _status = "Host running on port " + port;
-            }
-            else
-            {
-                _status = "Host failed";
-            }
-        }
-
-        private void StartServer(ushort port)
-        {
-            if (!ConfigureTransport("0.0.0.0", port)) return;
-            if (NetworkManager.Singleton.StartServer())
-            {
-                _status = "Server listening on port " + port;
-            }
-            else
-            {
-                _status = "Server failed";
-            }
-        }
-
-        private void StartClient(string host, ushort port)
-        {
-            if (!ConfigureTransport(host, port)) return;
-            if (NetworkManager.Singleton.StartClient())
-            {
-                _status = "Connecting to " + host + ":" + port + "...";
-            }
-            else
-            {
-                _status = "Client failed";
-            }
-        }
-
-        private bool ConfigureTransport(string host, ushort port)
-        {
-            if (NetworkManager.Singleton == null)
-            {
-                _status = "No NetworkManager in scene";
-                return false;
-            }
-            if (NetworkManager.Singleton.IsListening)
-            {
-                _status = "Already running - shutdown first";
-                return false;
-            }
-            UnityTransport transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
-            if (transport == null)
-            {
-                _status = "No UnityTransport on NetworkManager";
-                return false;
-            }
-            transport.SetConnectionData(host, port, "0.0.0.0");
-            return true;
-        }
 
         private static bool IsDedicatedServer()
         {
@@ -137,65 +92,10 @@ namespace _Project.Scripts.Network
 #endif
         }
 
-        private static ushort ReadServerPort()
-        {
-            string mapping = Environment.GetEnvironmentVariable("ARBITRIUM_PORTS_MAPPING");
-            if (!string.IsNullOrEmpty(mapping))
-            {
-                ushort? mapped = ReadInternalPortFromMapping(mapping);
-                if (mapped.HasValue)
-                {
-                    return mapped.Value;
-                }
-            }
-            string[] args = Environment.GetCommandLineArgs();
-            for (int i = 0; i < args.Length - 1; i++)
-            {
-                if (args[i] == "-port" && ushort.TryParse(args[i + 1], out ushort argPort))
-                {
-                    return argPort;
-                }
-            }
-            string envPort = Environment.GetEnvironmentVariable("PORT");
-            if (ushort.TryParse(envPort, out ushort envResult))
-            {
-                return envResult;
-            }
-            return 7777;
-        }
-
-        // Edgegap injects e.g. {"ports":{"game-7777":{"name":"...","internal":7777,
-        // "external":32512,"protocol":"UDP"}}} - the server must bind the internal port.
-        private static ushort? ReadInternalPortFromMapping(string mapping)
-        {
-            if (string.IsNullOrEmpty(mapping))
-            {
-                return null;
-            }
-            const string key = "\"internal\":";
-            int keyIndex = mapping.IndexOf(key, StringComparison.OrdinalIgnoreCase);
-            if (keyIndex < 0)
-            {
-                return null;
-            }
-            int valueStart = keyIndex + key.Length;
-            int valueEnd = valueStart;
-            while (valueEnd < mapping.Length && (char.IsDigit(mapping[valueEnd]) ||
-                (valueEnd == valueStart && mapping[valueEnd] == '-')))
-            {
-                valueEnd++;
-            }
-            if (int.TryParse(mapping.Substring(valueStart, valueEnd - valueStart), out int port) &&
-                port > 0 && port <= ushort.MaxValue)
-            {
-                return (ushort)port;
-            }
-            return null;
-        }
 
         private static ushort ParsePort(string text)
         {
-            return ushort.TryParse(text, out ushort port) ? port : (ushort)7777;
+            return ushort.TryParse(text, out ushort port) ? port : ConnectionBase.DefaultPort;
         }
     }
 }

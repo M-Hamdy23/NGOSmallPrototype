@@ -75,13 +75,16 @@ Scoring, the 3-second pre-round and the finished state are all `NetworkVariable`
 
 ### Disconnect cleanup
 
-`ConnectionManager.ServerOnClientDisconnect` (server-side) releases any carried Core / held Orb, re-balances team counters and despawns the per-client player object (players use `DontDestroyWithOwner` + manual server despawn).
+`GameManager.ServerOnClientDisconnect` (server-side) releases any carried Core / held Orb, re-balances team counters and despawns the per-client player object (players use `DontDestroyWithOwner` + manual server despawn).
 
 ### Key scripts
 
 | Script | Role |
 | --- | --- |
-| `ConnectionManager` | IMGUI connect panel (Host/Port/Connect), dedicated-server auto-start, port resolution (`ARBITRIUM_PORTS_MAPPING` -> `-port` -> `PORT` env -> 7777) |
+| `ConnectionManager` | IMGUI connect panel (Host/Port/Connect) + dedicated-server auto-start; delegates to the connection components below |
+| `ConnectionBase` | Shared connection plumbing: transport config/validation guard + shared default port (`7777`) |
+| `ServerConnection` | `StartServer` + dedicated-server port resolution (`ARBITRIUM_PORTS_MAPPING` -> `-port` -> `PORT` env -> 7777) |
+| `ClientConnection` | `StartHost` / `StartClient` (client-side connect logic) |
 | `NetworkPlayer` | Per-player replicated state (`playerTeam`, `state`, `hasOrb`, `carriedCoreId`), interact/throw request Rpcs, Input System actions |
 | `PlayerMovement` | Server-authoritative movement; client only sends a normalized 2D input |
 | `GameManager` | Match state machine, team assignment + spawn positioning, victory checks, elimination handling, connection approval |
@@ -220,12 +223,12 @@ Port: [ 32327 ]                            <- deployment external UDP port
 
 ## Server port configuration
 
-Resolution order (dedicated server only, `ConnectionManager.ReadServerPort`):
+Resolution order (dedicated server only, `ServerConnection.ReadServerPort`):
 
 1. `ARBITRIUM_PORTS_MAPPING` env (Edgegap injects the port-mapping JSON; we bind the **internal** port) - first,
 2. `-port N` command line,
 3. `PORT` env,
-4. fallback `7777`.
+4. fallback `7777` (`ConnectionBase.DefaultPort`).
 
 Documented mechanism: **no hardcoded port** in any scene/build artifact.
 
