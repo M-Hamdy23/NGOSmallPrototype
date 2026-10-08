@@ -12,6 +12,7 @@ namespace _Project.Scripts.Game
         public static GameManager Instance { get; private set; }
 
         [SerializeField] private int maxPlayers = 8;
+        [SerializeField] private int minPlayersToStart = 3;
         [SerializeField] private int coresToWin = 2;
         [SerializeField] private float startingDurationSeconds = 3f;
         [SerializeField] private Vector2 baseHalfExtents = new Vector2(3f, 7f);
@@ -124,12 +125,12 @@ namespace _Project.Scripts.Game
             switch (matchStateNv.Value)
             {
                 case MatchState.WaitingForPlayers:
-                    if (NetworkManager.ConnectedClientsList.Count >= 2)
+                    if (NetworkManager.ConnectedClientsList.Count >= minPlayersToStart)
                     {
                         _startingEndServerTime = now + startingDurationSeconds;
                         matchStateNv.Value = MatchState.Starting;
                         startingCountdown.Value = Mathf.CeilToInt((float)startingDurationSeconds);
-                        Debug.Log("[GameManager] 2+ players connected, match Starting");
+                        Debug.Log($"[GameManager] {minPlayersToStart}+ players connected, match Starting");
                     }
                     break;
 
