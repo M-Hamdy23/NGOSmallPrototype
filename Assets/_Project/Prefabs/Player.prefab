@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: 641039179299100695}
   - component: {fileID: 2873485737426871110}
   - component: {fileID: 1869055058364283252}
-  - component: {fileID: 2660290336856515903}
+  - component: {fileID: -5127334185327168770}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -130,7 +130,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 3396463277
+  GlobalObjectIdHash: 2922875847
   InScenePlacedSourceGlobalObjectIdHash: 0
   m_InScenePlacedDisabledByDefault: 0
   DeferredDespawnTick: 0
@@ -197,9 +197,8 @@ MonoBehaviour:
   moveSpeed: 5
   carrierSpeedMultiplier: 0.5
   arenaHalfExtents: {x: 29, y: 14.5}
-  inputSendRate: 60
   moveActionReference: {fileID: -1680190386980627800, guid: 052faaac586de48259a63d0c4782560b, type: 3}
---- !u!114 &2660290336856515903
+--- !u!114 &-5127334185327168770
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -208,11 +207,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 4509659999885021644}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 65537343e0c6e754ca2bcd9748b79c60, type: 3}
+  m_Script: {fileID: 11500000, guid: 5abfce83aadd948498d4990c645a017b, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::_Project.Scripts.Player.SmoothedAnticipatedNetworkTransform
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.Components.AnticipatedNetworkTransform
   ShowTopMostFoldoutHeaderGroup: 1
-  NetworkTransformExpanded: 0
+  NetworkTransformExpanded: 1
   AutoOwnerAuthorityTickOffset: 1
   PositionInterpolationType: 0
   RotationInterpolationType: 0
@@ -245,5 +244,4 @@ MonoBehaviour:
   SwitchTransformSpaceWhenParented: 0
   Interpolate: 0
   SlerpPosition: 0
-  StaleDataHandling: 0
-  remoteSmoothTime: 0.08
+  StaleDataHandling: 1

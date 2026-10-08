@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using _Project.Scripts.Game;
 using Unity.Netcode;
+using Unity.Netcode.Components;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -93,7 +94,7 @@ namespace _Project.Scripts.Player
         private NetworkVariable<MoveAck> _moveAck = new NetworkVariable<MoveAck>();
 
         private NetworkPlayer _networkPlayer;
-        private SmoothedAnticipatedNetworkTransform _anticipatedTransform;
+        private AnticipatedNetworkTransform _anticipatedTransform;
 
         // Server-side simulation state.
         private readonly Queue<MoveCmd> _pendingCommands = new Queue<MoveCmd>();
@@ -145,7 +146,7 @@ namespace _Project.Scripts.Player
         {
             name = $"Player_{OwnerClientId}";
             _networkPlayer = GetComponent<NetworkPlayer>();
-            _anticipatedTransform = GetComponent<SmoothedAnticipatedNetworkTransform>();
+            _anticipatedTransform = GetComponent<AnticipatedNetworkTransform>();
 
             // Clear any state carried over by a reused or respawned network object.
             ResetMovementState();

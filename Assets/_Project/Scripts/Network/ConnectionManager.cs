@@ -21,8 +21,23 @@ namespace _Project.Scripts.Network
 
             if (IsDedicatedServer())
             {
+                ConfigureServerLoop();
                 _status = serverConnection.StartServer();
             }
+        }
+
+        /// <summary>
+        /// A headless server's frame rate directly caps how often NetworkTransform states
+        /// are sent: NGO samples authority transforms once per NetworkUpdate (once per
+        /// frame), so a throttled server loop sends only a handful of updates per second
+        /// and remote players step instead of moving smoothly. Keep the loop running
+        /// while unfocused and running well above the network tick rate.
+        /// </summary>
+        private static void ConfigureServerLoop()
+        {
+            Application.runInBackground = true;
+            QualitySettings.vSyncCount = 0;
+            Application.targetFrameRate = 120;
         }
 
         private void OnValidate()
