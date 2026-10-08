@@ -8,6 +8,7 @@ A technical-assessment prototype: a **Simple Realtime Game ** with the classic C
 - [Architecture](#architecture)
   - [Authority model](#authority-model)
   - [Movement pipeline](#movement-pipeline)
+  - [Client prediction & reconciliation](#client-prediction--reconciliation)
   - [Core interaction](#core-interaction)
   - [Match state machine](#match-state-machine)
   - [Disconnect cleanup](#disconnect-cleanup)
@@ -46,7 +47,7 @@ A technical-assessment prototype: a **Simple Realtime Game ** with the classic C
 
 The dedicated server is **authoritative for everything**. Clients only *request*:
 
-- **Movement**: client -> `PlayerMovement` sends input (via a 20-to-60-Hz **send-on-change** `Rpc`), server clamps, validates and integrates; the owner's `NetworkTransform` snapshot keeps every client in sync.
+- **Movement**: the client only sends **inputs** (never positions or speeds), as sequenced `MoveCmd`s sampled every fixed tick. `PlayerMovement` predicts locally and reconciles against the server's `MoveAck` (last processed sequence + authoritative position); the server validates each command and integrates it in order. Other clients render the replicated transform.
 - **Possession**: first *valid* request wins. Race conditions are resolved on the server using an exclusive state check (ObjectiveState/OrbState transitions are checked-and-set inside the interaction).
 - **Hits**: `OrbProjectile` collision handling runs 100% on the server (`OnCollisionEnter` is only executed server-side); clients see the replicated result.
 - **Scores / state**: all replicated values (`NetworkVariable`) - scores, core states, match state, player team/state - are set only on the server.
@@ -54,11 +55,32 @@ The dedicated server is **authoritative for everything**. Clients only *request*
 ### Movement pipeline
 
 ```
-Client input (Input System: WASD / joystick)
-  -> send-on-change Rpc (60 Hz cap)
-    -> server clamp + integrate (60-tick rate)
-      -> NetworkTransform snapshot (interpolated, 50 ms catch-up)
+Owner client (FixedUpdate, ~50 Hz)
+  -> sample Input System (WASD / joystick), clamp to unit length
+    -> sequenced MoveCmd: input only, never position or speed
+      -> local prediction + send to server
+        -> server validates at ingest, integrates in order (<= 8 cmds/tick, arena-clamped)
+          -> MoveAck NetworkVariable (last processed sequence + authoritative position)
+            -> owner: snap to ack, replay un-acked commands (reconciliation)
+            -> others: SmoothedAnticipatedNetworkTransform glide (SmoothDamp)
 ```
+
+### Client prediction & reconciliation
+
+Movement is server-authoritative but feels local: the owner predicts each input immediately and the server corrects it as acks arrive.
+
+1. **Sample** - every `FixedUpdate` the owner reads the Input System (or the mobile joystick via `SetExternalInput`) and clamps it to unit length.
+2. **Command** - the input is wrapped in a `MoveCmd { seq, input }` with a monotonically increasing sequence number, sent to the server (reliable, owner-only `Rpc`) and stored in a bounded (~4 s) buffer.
+3. **Predict** - the owner applies the same `StepPosition` math locally (server speed rules + arena clamp), so its own movement is instant and never feels the RTT.
+4. **Validate (server)** - at ingest the server rejects stale/duplicate sequences and over-large gaps, zeroes NaN/Infinity, clamps the magnitude, and zeroes input for eliminated players or a non-`Playing` match. Only sanitized commands enter the queue.
+5. **Integrate (server)** - the server drains the queue in original order (never merging inputs), up to 8 commands per tick, resolving speed per command from authoritative state, then publishes `MoveAck { seq, pos }` through a `NetworkVariable`.
+6. **Reconcile** - on each ack the owner snaps to the acknowledged position and replays every still-un-acked command. Because both sides run identical deterministic math at the same fixed rate, drift converges to ~zero and corrections are imperceptible.
+
+Notes:
+
+- The client never sends positions or speeds - only inputs.
+- There is **no lag compensation**: orb hits are validated against the server's current positions, so a high-latency throw can resolve slightly behind what the thrower saw.
+- Remote players converge on the replicated snapshot with a critically damped `SmoothDamp` (see `SmoothedAnticipatedNetworkTransform`) rather than a snapshot-interpolation buffer, so heavy jitter can leave them trailing by roughly the convergence time (~80 ms).
 
 ### Core interaction
 
@@ -86,7 +108,8 @@ Scoring, the 3-second pre-round and the finished state are all `NetworkVariable`
 | `ServerConnection` | `StartServer` + dedicated-server port resolution (`ARBITRIUM_PORTS_MAPPING` -> `-port` -> `PORT` env -> 7777) |
 | `ClientConnection` | `StartHost` / `StartClient` (client-side connect logic) |
 | `NetworkPlayer` | Per-player replicated state (`playerTeam`, `state`, `hasOrb`, `carriedCoreId`), interact/throw request Rpcs, Input System actions |
-| `PlayerMovement` | Server-authoritative movement; client only sends a normalized 2D input |
+| `PlayerMovement` | Server-authoritative movement with sequenced-input client prediction + reconciliation; the client only ever sends a normalized 2D input |
+| `SmoothedAnticipatedNetworkTransform` | `AnticipatedNetworkTransform` subclass; renders remote players with a critically damped (`SmoothDamp`) glide toward the latest snapshot, snapping on teleport/respawn |
 | `GameManager` | Match state machine, team assignment + spawn positioning, victory checks, elimination handling, connection approval |
 | `ObjectiveCore` | Core state machine + 1-second deposit timer (server-only logic) |
 | `SharedOrb` / `OrbProjectile` | Orb possession / throwing / flight timer, server-validated hit targeting |
@@ -107,7 +130,7 @@ Scoring, the 3-second pre-round and the finished state are all `NetworkVariable`
 Assets/
   _Project/
     Scenes/Arena.unity          # single scene: everything (layout, spawn markers, NetworkManager, GameManager, HUD)
-    Prefabs/Player.prefab       # NetworkObject + NetworkTransform + NetworkPlayer + PlayerMovement
+    Prefabs/Player.prefab       # NetworkObject + NetworkPlayer + PlayerMovement + SmoothedAnticipatedNetworkTransform (NetworkTransform)
     Prefabs/Core.prefab         # NetworkObject + NetworkTransform + ObjectiveCore
     Prefabs/Orb.prefab          # NetworkObject + NetworkTransform + SharedOrb + OrbProjectile
     Scripts/...                   # the architecture table above
@@ -234,7 +257,6 @@ Documented mechanism: **no hardcoded port** in any scene/build artifact.
 
 ## Known limitations
 
-- **No client-side prediction** for movement (deliberately out of assesment deadline scope). The client *feels* RTT + ~50 ms on its own movement. Future work: client prediction with server reconciliation, and smoothing the remote players' interpolation buffer.
 - UI is debug-grade IMGUI (OnGUI), no game-feel/minimap. Swapping to a real uGUI UI is a drop-in.
 - Single deployment/game instance; **no matchmaking service**, no session handoff, no "teams fill over time" (free tier permits 1 deployment).
 - Org settings like `maxPlayers` and `startingDurationSeconds` are serialized on `GameManager`, not remotely configurable.
