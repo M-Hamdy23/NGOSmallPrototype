@@ -130,7 +130,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 0
+  GlobalObjectIdHash: 3396463277
   InScenePlacedSourceGlobalObjectIdHash: 0
   m_InScenePlacedDisabledByDefault: 0
   DeferredDespawnTick: 0
@@ -205,6 +205,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CoreRush.Player.NetworkPlayer
   ShowTopMostFoldoutHeaderGroup: 1
   nearestAvailableCoreMaxDistance: 4
+  interactActionReference: {fileID: 1781555164194001046, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  throwActionReference: {fileID: -2099379676528639254, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  pickupActionReference: {fileID: 1781555164194001046, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   playerTeam:
     UpdateTraits:
       MinSecondsBetweenUpdates: 0
@@ -242,3 +245,4 @@ MonoBehaviour:
   carrierSpeedMultiplier: 0.5
   arenaHalfExtents: {x: 29, y: 14.5}
   inputSendRate: 20
+  moveActionReference: {fileID: -1680190386980627800, guid: 052faaac586de48259a63d0c4782560b, type: 3}

@@ -10,6 +10,9 @@ namespace _Project.Scripts.Player
     public class NetworkPlayer : NetworkBehaviour
     {
         [SerializeField] private float nearestAvailableCoreMaxDistance = 4f;
+        [SerializeField] private InputActionReference interactActionReference;
+        [SerializeField] private InputActionReference throwActionReference;
+
 
         public NetworkVariable<Team> playerTeam = new NetworkVariable<Team>(Team.None);
         public NetworkVariable<PlayerState> state = new NetworkVariable<PlayerState>(PlayerState.Alive);
@@ -38,6 +41,11 @@ namespace _Project.Scripts.Player
         {
             name = "Player_" + OwnerClientId;
             _renderer = GetComponent<Renderer>();
+            if (IsOwner)
+            {
+                EnableInputActions();
+            }
+
             playerTeam.OnValueChanged += OnTeamChanged;
             state.OnValueChanged += OnStateChanged;
             OnTeamChanged(Team.None, playerTeam.Value);
@@ -54,10 +62,24 @@ namespace _Project.Scripts.Player
         {
             playerTeam.OnValueChanged -= OnTeamChanged;
             state.OnValueChanged -= OnStateChanged;
+            DisableInputActions();
+
             if (IsServer && GameManager.Instance != null)
             {
                 GameManager.Instance.ServerUnregisterPlayer(OwnerClientId);
             }
+        }
+
+        private void EnableInputActions()
+        {
+            if (interactActionReference) interactActionReference.action.Enable();
+            if (throwActionReference) throwActionReference.action.Enable();
+        }
+
+        private void DisableInputActions()
+        {
+            if (interactActionReference) interactActionReference.action.Disable();
+            if (throwActionReference) throwActionReference.action.Disable();
         }
 
         private void OnTeamChanged(Team oldTeam, Team newTeam)
@@ -87,20 +109,19 @@ namespace _Project.Scripts.Player
         private void Update()
         {
             if (!IsSpawned || !IsOwner) return;
-            Keyboard kb = Keyboard.current;
-            if (kb == null) return;
 
-            if (kb.eKey.wasPressedThisFrame)
+            if (interactActionReference && interactActionReference.action.WasPressedThisFrame())
             {
-                ServerRequestPickupOrInteract();
+                RequestPickupOrInteract();
             }
-            if (kb.spaceKey.wasPressedThisFrame)
+
+            if (throwActionReference && throwActionReference.action.WasPressedThisFrame())
             {
-                ServerRequestThrow();
+                RequestThrow();
             }
         }
 
-        private void ServerRequestPickupOrInteract()
+        public void RequestPickupOrInteract()
         {
             if (carriedCoreId.Value != 0)
             {
@@ -111,7 +132,7 @@ namespace _Project.Scripts.Player
                     return;
                 }
             }
-
+            
             ObjectiveCore nearest = FindNearestAvailableCore(nearestAvailableCoreMaxDistance);
             if (nearest != null)
             {
@@ -141,10 +162,11 @@ namespace _Project.Scripts.Player
                     best = orb;
                 }
             }
+
             return best;
         }
 
-        private void ServerRequestThrow()
+        public void RequestThrow()
         {
             if (!hasOrb.Value)
             {
@@ -158,10 +180,12 @@ namespace _Project.Scripts.Player
             {
                 direction = GetComponent<PlayerMovement>().LastMoveDirection;
             }
+
             if (direction == Vector2.zero)
             {
                 direction = Vector2.right;
             }
+
             _Project.Scripts.Orb.SharedOrb orb = FindHeldOrb();
             if (orb != null)
             {
@@ -184,6 +208,7 @@ namespace _Project.Scripts.Player
                     best = other.transform.position - transform.position;
                 }
             }
+
             return best.sqrMagnitude > 0.001f ? best.normalized : Vector3.zero;
         }
 
@@ -196,6 +221,7 @@ namespace _Project.Scripts.Player
                     return orb;
                 }
             }
+
             return null;
         }
 

@@ -11,7 +11,7 @@ namespace _Project.Scripts.Player
         [SerializeField] private float carrierSpeedMultiplier = 0.5f; // plan §7: orb carrier moves at 50%
         [SerializeField] private Vector2 arenaHalfExtents = new Vector2(29f, 14.5f);
         [SerializeField] private float inputSendRate = 20f;
-
+        [SerializeField] private InputActionReference moveActionReference;
         private Vector2 _serverInput;
         private Vector2 _lastSentInput;
         private Vector2 _externalInput;
@@ -26,6 +26,25 @@ namespace _Project.Scripts.Player
         {
             name = "Player_" + OwnerClientId;
             _networkPlayer = GetComponent<NetworkPlayer>();
+            if (IsOwner)
+            {
+                EnableInputActions();
+            }
+        }
+
+        public override void OnNetworkDespawn()
+        {
+            DisableInputActions();
+        }
+
+        private void EnableInputActions()
+        {
+            if (moveActionReference) moveActionReference.action.Enable();
+        }
+
+        private void DisableInputActions()
+        {
+            if (moveActionReference) moveActionReference.action.Disable();
         }
 
         private void Update()
@@ -38,6 +57,7 @@ namespace _Project.Scripts.Player
                 {
                     _serverInput = ReadLocalInput();
                 }
+
                 ApplyServerMovement();
             }
             else if (IsOwner)
@@ -52,15 +72,15 @@ namespace _Project.Scripts.Player
             {
                 return Vector2.ClampMagnitude(_externalInput, 1f);
             }
-            Keyboard kb = Keyboard.current;
-            if (kb == null) return Vector2.zero;
 
-            Vector2 input = Vector2.zero;
-            if (kb.wKey.isPressed || kb.upArrowKey.isPressed) input.y += 1f;
-            if (kb.sKey.isPressed || kb.downArrowKey.isPressed) input.y -= 1f;
-            if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) input.x -= 1f;
-            if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) input.x += 1f;
-            return Vector2.ClampMagnitude(input, 1f);
+            // Input System action (Player/Move) — driven by WASD composite,
+            // gamepad leftStick and the on-screen joystick (OnScreenStick).
+            if (moveActionReference != null)
+            {
+                return moveActionReference.action.ReadValue<Vector2>();
+            }
+
+            return Vector2.zero;
         }
 
         public void SetExternalInput(Vector2 input)
@@ -78,6 +98,7 @@ namespace _Project.Scripts.Player
             {
                 _lastMoveDirection = input;
             }
+
             _nextSendTime = Time.time + 1f / inputSendRate;
             MoveInputServerRpc(input);
         }
@@ -92,6 +113,7 @@ namespace _Project.Scripts.Player
                 _serverInput = Vector2.zero;
                 return;
             }
+
             _serverInput = Vector2.ClampMagnitude(input, 1f);
         }
 
@@ -102,6 +124,7 @@ namespace _Project.Scripts.Player
             {
                 _lastMoveDirection = _serverInput;
             }
+
             Vector3 delta = new Vector3(_serverInput.x, 0f, _serverInput.y) * (speed * Time.deltaTime);
             Vector3 pos = transform.position + delta;
             pos.x = Mathf.Clamp(pos.x, -arenaHalfExtents.x, arenaHalfExtents.x);
