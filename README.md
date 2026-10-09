@@ -149,6 +149,8 @@ Touch controls (all bound through the `InputSystem_Actions` asset):
 
 ## Edgegap deployment
 
+> Official Edgegap Unity documentation: **<https://docs.edgegap.com/unity>**
+
 ### One-time setup
 
 1. Create an Edgegap account and an application (this project used the app name **`ngosmallprototype`**; the name is arbitrary).
