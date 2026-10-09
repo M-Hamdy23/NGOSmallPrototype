@@ -17,6 +17,13 @@ namespace _Project.Scripts.Game
         [SerializeField] private float startingDurationSeconds = 3f;
         [SerializeField] private Vector2 baseHalfExtents = new Vector2(3f, 7f);
 
+        // Relative to each base's transform; one slot per core that can be scored.
+        [SerializeField] private Vector3[] coreSlotOffsets = new Vector3[]
+        {
+            new Vector3(0f, 0.65f, -3f),
+            new Vector3(0f, 0.65f, 3f)
+        };
+
         [SerializeField] private GameObject corePrefab;
         [SerializeField] private GameObject orbPrefab;
         [SerializeField] private Transform redBase;
@@ -34,6 +41,7 @@ namespace _Project.Scripts.Game
         public NetworkVariable<Team> winningTeam = new NetworkVariable<Team>(Team.None);
         public int MinimumPlayersToStart => minPlayersToStart;
         private readonly Dictionary<ulong, NetworkPlayer> _players = new Dictionary<ulong, NetworkPlayer>();
+        private readonly Dictionary<ulong, (Team team, int slot)> _coreSlots = new Dictionary<ulong, (Team, int)>();
         private int _redCount;
         private int _blueCount;
         private readonly Queue<(NetworkPlayer player, Vector3 position)> _pendingSpawns = new Queue<(NetworkPlayer, Vector3)>();
@@ -180,6 +188,64 @@ namespace _Project.Scripts.Game
             if (homeBase == null) return false;
             Vector3 diff = player.transform.position - homeBase.position;
             return Mathf.Abs(diff.x) <= baseHalfExtents.x && Mathf.Abs(diff.z) <= baseHalfExtents.y;
+        }
+
+        // ============================================================
+        // CORE SLOTS: each base has a fixed set of pads a carried Core
+        // snaps to while being scored, so two Cores at one base never
+        // overlap. Reservations live on the server only.
+        public bool ServerTryReserveCoreSlot(Team team, ObjectiveCore core, out Vector3 position)
+        {
+            position = Vector3.zero;
+            if (core == null || coreSlotOffsets == null || coreSlotOffsets.Length == 0) return false;
+
+            ulong coreId = core.NetworkObjectId;
+
+            // A Core already stationed in this base keeps its pad.
+            if (_coreSlots.TryGetValue(coreId, out (Team team, int slot) existing) && existing.team == team)
+            {
+                position = GetCoreSlotPosition(team, existing.slot);
+                return true;
+            }
+
+            for (int i = 0; i < coreSlotOffsets.Length; i++)
+            {
+                if (IsCoreSlotFree(team, i, coreId))
+                {
+                    _coreSlots[coreId] = (team, i);
+                    position = GetCoreSlotPosition(team, i);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public void ServerReleaseCoreSlot(ObjectiveCore core)
+        {
+            if (core != null) _coreSlots.Remove(core.NetworkObjectId);
+        }
+
+        private bool IsCoreSlotFree(Team team, int slot, ulong exceptCoreId)
+        {
+            foreach (KeyValuePair<ulong, (Team team, int slot)> entry in _coreSlots)
+            {
+                if (entry.Key == exceptCoreId) continue;
+                if (entry.Value.team == team && entry.Value.slot == slot) return false;
+            }
+
+            return true;
+        }
+
+        private Vector3 GetCoreSlotPosition(Team team, int slot)
+        {
+            Transform homeBase = team == Team.Red ? redBase : blueBase;
+            if (homeBase == null || coreSlotOffsets == null || slot < 0 || slot >= coreSlotOffsets.Length)
+            {
+                return homeBase != null ? homeBase.position : Vector3.zero;
+            }
+
+            return homeBase.position + homeBase.rotation * coreSlotOffsets[slot];
         }
 
         public void ServerTeamScored(Team team)

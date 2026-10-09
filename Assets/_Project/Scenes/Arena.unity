@@ -203,6 +203,9 @@ MonoBehaviour:
   coresToWin: 2
   startingDurationSeconds: 3
   baseHalfExtents: {x: 3, y: 7}
+  coreSlotOffsets:
+  - {x: 0, y: 0.65, z: -3}
+  - {x: 0, y: 0.65, z: 3}
   corePrefab: {fileID: 8320840340263541247, guid: 6e487ec9df7403a49963bcdde36d4345, type: 3}
   orbPrefab: {fileID: 4409858476063462247, guid: 0e0d9b32e0c6e6f4fade6892d28fe281, type: 3}
   redBase: {fileID: 1514186557}

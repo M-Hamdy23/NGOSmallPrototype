@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using _Project.Scripts.Game;
 using _Project.Scripts.Player;
 using Unity.Netcode;
+using Unity.Netcode.Components;
 using UnityEngine;
 
 namespace _Project.Scripts.Objective
@@ -20,6 +21,8 @@ namespace _Project.Scripts.Objective
         // NoteL server-only cached values
         private double _interactionEndTimeServer;
         private Renderer _renderer;
+        private NetworkTransform _networkTransform;
+        private Vector3 _homePosition;
         private static readonly Color ColorAvailable = new Color(1f, 0.85f, 0.2f);
         private static readonly Color ColorInteraction = new Color(1f, 0.45f, 0f);
         private static readonly Color ColorCompleted = new Color(0.2f, 0.9f, 0.3f);
@@ -28,6 +31,7 @@ namespace _Project.Scripts.Objective
         {
             Instances.Add(this);
             _renderer = GetComponent<Renderer>();
+            _networkTransform = GetComponent<NetworkTransform>();
         }
 
         private void OnDisable()
@@ -50,6 +54,11 @@ namespace _Project.Scripts.Objective
 
         public override void OnNetworkSpawn()
         {
+            if (IsServer)
+            {
+                _homePosition = transform.position;
+            }
+
             state.OnValueChanged += UpdateVisuals;
             UpdateVisuals(CoreState.Available, state.Value);
         }
@@ -121,6 +130,16 @@ namespace _Project.Scripts.Objective
             if (player.carriedCoreId.Value != NetworkObjectId) return false;
             if (!GameManager.Instance.ServerIsPlayerInOwnBase(player)) return false;
 
+            // Station the core on a free pad in the player's base before it
+            // becomes visible, so it never flashes at its original position.
+            if (!GameManager.Instance.ServerTryReserveCoreSlot(player.playerTeam.Value, this, out Vector3 slotPosition))
+            {
+                Debug.Log("[ObjectiveCore] " + name + " interaction rejected: no free core slot");
+                return false;
+            }
+
+            _networkTransform.Teleport(slotPosition, transform.rotation, transform.localScale);
+
             state.Value = CoreState.InteractionInProgress;
             _interactionEndTimeServer = NetworkManager.Singleton.ServerTime.Time + interactionDuration;
 
@@ -156,6 +175,7 @@ namespace _Project.Scripts.Objective
             // Cancellation: player moved out of their base -> pause back to Carried, requirable
             if (!GameManager.Instance.ServerIsPlayerInOwnBase(player))
             {
+                GameManager.Instance.ServerReleaseCoreSlot(this);
                 state.Value = CoreState.Carried;
                 Debug.Log("[ObjectiveCore] " + name + " interaction cancelled: left base");
                 return;
@@ -194,6 +214,11 @@ namespace _Project.Scripts.Objective
             {
                 player.carriedCoreId.Value = 0UL;
             }
+
+            // Disconnect/elimination/cancel: free the pad and snap the core back to its spawn.
+            if (GameManager.Instance != null) GameManager.Instance.ServerReleaseCoreSlot(this);
+            _networkTransform.Teleport(_homePosition, transform.rotation, transform.localScale);
+
             state.Value = nextState;
             carrierClientId.Value = ulong.MaxValue;
         }
