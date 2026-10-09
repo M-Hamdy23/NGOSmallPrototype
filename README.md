@@ -44,7 +44,8 @@ The point of the project is the networking, not the art: server authority, NGO s
 ## Game rules
 
 - Two teams (Red / Blue), up to 8 players per match.
-- **3 Cores** spawn neutral. Carry one to your base, stand still and **hold interact for 1 second** to score. Moving cancels the interaction. Dying with a Core drops it back to neutral.
+- **3 Cores** spawn neutral. Carry one to your base and **hold interact for 1 second** to score. The Core snaps onto a free pad in your base while scoring (each base has **2 pads**, so two scored Cores never overlap); leaving the base cancels the interaction. Dying or disconnecting with a Core returns it to its spawn.
+- Possession is visible to everyone: a floating **marker above each carrier** (gold cube = Core, cyan sphere = Orb), and your own HUD panel lists what you are holding.
 - A shared **Orb** is a temporary powerup: throw it in a straight line for up to 3 s. Hitting an enemy eliminates them (server-validated); hitting a teammate / wall just recovers it. The Orb carrier moves at 50 % speed.
 - **First team to score 2 Cores wins**, and a team also wins by **eliminating every enemy**.
 
@@ -74,7 +75,7 @@ Assets/
     Scripts/
       Network/  (ConnectionManager, ServerConnection, ClientConnection, Abstract/ConnectionBase)
       Game/     (GameManager, MatchState, Team)
-      Player/   (NetworkPlayer, PlayerMovement, PlayerState)
+      Player/   (NetworkPlayer, PlayerMovement, PlayerState, PlayerPossessionIndicator)
       Objective/(ObjectiveCore, ObjectiveState)
       Orb/      (SharedOrb, OrbProjectile, OrbState)
       UI/       (ConnectionUI, GameHUD)
@@ -303,7 +304,7 @@ The Edgegap `EdgegapServerBootstrap` also logs a warning at startup if the Unity
 - Edgegap **free tier allows only one active deployment** — stop the previous deployment and wait for it to fully terminate before deploying again.
 - No lag compensation: Orb hits validate against current server positions, so a high-latency throw can resolve slightly behind what the thrower saw.
 - No sound, animation, or effects; meshes are Unity primitives.
-- Server/scene config values (`maxPlayers`, `coresToWin`, `startingDurationSeconds`) live on components in `Arena.unity`, not in remote config.
+- Server/scene config values (`maxPlayers`, `coresToWin`, `startingDurationSeconds`, the per-base `coreSlotOffsets`) live on components in `Arena.unity`, not in remote config.
 
 **Troubleshooting**
 

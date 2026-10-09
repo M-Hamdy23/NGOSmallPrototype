@@ -71,7 +71,7 @@ Key properties:
 
 ## Gameplay systems
 
-**Objective / race condition (`ObjectiveCore.cs`).** Cores are server-owned; gameplay possession is a `CarrierClientId` value, not an NGO ownership transfer. Each pickup is a check-and-set on the server: the first valid request flips `Available → Carried`; a second simultaneous request sees a non-`Available` state and is rejected. Deposit starts a **1-second server timer**; moving, dying or disconnecting cancels it and returns the Core.
+**Objective / race condition (`ObjectiveCore.cs`).** Cores are server-owned; gameplay possession is a `CarrierClientId` value, not an NGO ownership transfer. Each pickup is a check-and-set on the server: the first valid request flips `Available → Carried`; a second simultaneous request sees a non-`Available` state and is rejected. Deposit starts a **1-second server timer** and snaps the Core onto a free pad in the carrier's base (2 pads per base, reserved on the server, so scored Cores never overlap); leaving the base, dying or disconnecting cancels it and returns the Core to its spawn.
 
 **Orb (`SharedOrb.cs` / `OrbProjectile.cs`).** One shared Orb; possession is a single server-side carrier id. While carried, the server applies the reduced speed. A throw sends a **direction only** (never a target); the server owns the Rigidbody, resolves the collision in `OnCollisionEnter` (server-only), and eliminates an enemy on a valid hit.
 
