@@ -327,4 +327,4 @@ This submission intentionally contains **no Edgegap API tokens, credentials, pas
 
 shows the Edgegap deployment/connectivity, the Android build running on the physical device (Oppo Reno 5), and 3-client multiplayer gameplay.
 
-- **Link:** `<shared video link will be here>`
+- **Link:** [Demo video (Google Drive)](https://drive.google.com/file/d/1BPxA98O6SlAHyfoZ3tpPNwb-tezOHeWa/view?usp=sharing)
